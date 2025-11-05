@@ -1,0 +1,133 @@
+"""
+Módulo Ingestor - MVP
+====================
+... (docstrings) ...
+"""
+
+import asyncio
+import redis.asyncio as redis
+import logging  # <-- Importado
+import os
+import sys
+import math
+from datetime import datetime
+from dotenv import load_dotenv
+from phasortoolbox.client import Client
+# Agora o import pode ser tentado e, se falhar, o logger existirá
+try:
+    from phasortoolbox import Client
+except ModuleNotFoundError:
+    logging.Logger.critical(f"FALHA: Não foi possível encontrar 'phasortoolbox' na pasta: {LIBS_PATH}")
+    logging.Logger.critical("Verifique 1: A pasta 'libs' existe na raiz do projeto?")
+    logging.Logger.critical("Verifique 2: A pasta 'phasortoolbox' está dentro de 'libs'?")
+    sys.exit(1)
+
+# --- Configuração ---
+load_dotenv()
+
+# Configuração do logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s] (Ingestor): %(message)s')
+logger = logging.getLogger(__name__)
+
+
+
+
+# --- Configurações lidas do Ambiente (via .env ou docker-compose.yml) ---
+try:
+    REDIS_HOST = os.environ['REDIS_HOST']
+    PMU_HOST = os.environ['PMU_HOST']
+    PMU_PORT = int(os.environ['PMU_PORT'])
+    PMU_ID = int(os.environ['PMU_ID'])
+except KeyError as e:
+    logger.critical(f"Erro: Variável de ambiente não definida: {e}")
+    logger.critical("Certifique-se de que seu arquivo .env está preenchido e na raiz do projeto.")
+    sys.exit(1)
+
+STREAM_KEY = f"pmu_data_stream:{PMU_ID}" # Chave do Redis para este stream
+
+async def run_ingestor():
+    """ Função principal assíncrona do ingestor """
+
+    logger.info(f"Iniciando Ingestor para PMU ID {PMU_ID} em {PMU_HOST}:{PMU_PORT}")
+    logger.info(f"Conectando ao Redis em {REDIS_HOST}...")
+
+    try:
+        # 1. Conecta ao Redis
+        redis_client = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
+        await redis_client.ping()
+        logger.info("Conexão com Redis estabelecida.")
+    except Exception as e:
+        logger.critical(f"Falha ao conectar ao Redis: {e}. Encerrando.")
+        return
+
+    # 2. Instancia o cliente PhasorToolBox
+    print(PMU_ID)
+    pmu_client = Client(remote_ip=PMU_HOST, remote_port=PMU_PORT,idcode=PMU_ID, mode='TCP')
+
+    logger.info(f"Publicando dados no Redis Stream: {STREAM_KEY}")
+    logger.info("Iniciando conexão com a PMU...")
+
+    try:
+        # 3. Inicia o loop de streaming
+        async for internal_pmu_id, msg in pmu_client.stream():
+
+            if msg.is_data_frame():
+                # --- Preparação do Payload (Seção 3.1 do ARQUITETURA.MD) ---
+                try:
+                    # 1. Metadados temporais
+                    timestamp = msg.timestamp
+
+                    # 2. Dicionário "flat" (campos separados)
+                    phasor_frame = {
+                        "ts": timestamp.timestamp(), # Timestamp Unix (float, ex: 1678886400.123)
+                        "ts_iso": timestamp.isoformat(), # Timestamp legível (ex: "2023-03-15T12:00:00.123+00:00")
+                        "pmu_id": internal_pmu_id,
+                        "stat_word": msg.stat.stat_word,
+                        "freq": msg.frequency,
+                        "rocof": msg.dfreq
+                    }
+
+                    # 3. Adiciona Fasores (Magnitude e Ângulo em Graus)
+                    for i, (mag, ang_rad) in enumerate(msg.phasors):
+                        phasor_frame[f'phasor_{i}_mag'] = mag
+                        phasor_frame[f'phasor_{i}_ang_deg'] = math.degrees(ang_rad)
+
+                    # 4. Adiciona Analógicos
+                    for i, val in enumerate(msg.analog):
+                        phasor_frame[f'analog_{i}'] = val
+
+                    # 5. Adiciona Digitais (convertidos para 0 ou 1)
+                    for i, val in enumerate(msg.digital):
+                        phasor_frame[f'digital_{i}'] = int(bool(val))
+
+                    # --- Publicação no Redis (Ref: ARQUITETURA.MD, Seção 3.2) ---
+                    await redis_client.xadd(
+                        STREAM_KEY,
+                        phasor_frame,
+                        maxlen=100000,
+                        approximate=True
+                    )
+                    logger.debug(f"Publicada msg de {internal_pmu_id} @ {timestamp}")
+
+                except Exception as e:
+                    logger.warning(f"Erro ao processar/publicar quadro: {e}", exc_info=True)
+
+            elif msg.is_config_frame():
+                logger.info(f"Recebida Config Frame (CFG-2) da PMU ID: {internal_pmu_id}")
+
+    except asyncio.CancelledError:
+        logger.info("Ingestor recebendo sinal de desligamento.")
+    except Exception as e:
+        logger.critical(f"Erro crítico no stream do cliente: {e}", exc_info=True)
+    finally:
+        await pmu_client.stop()
+        await redis_client.aclose()
+        logger.info(f"Ingestor {PMU_ID} encerrado.")
+
+if __name__ == "__main__":
+    # Removemos o 'argparse'. O script agora lê do .env
+    try:
+        asyncio.run(run_ingestor())
+    except KeyboardInterrupt:
+        logger.info("Desligamento solicitado pelo usuário.")

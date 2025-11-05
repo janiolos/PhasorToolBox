@@ -10,7 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import gc
 import logging
-logging.basicConfig(level=logging.DEBUG)
+# reduce verbosity: don't use DEBUG (matplotlib font manager is very noisy)
+logging.basicConfig(level=logging.INFO)
+# silence matplotlib internal debug noise
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
 class FreqMeter(object):
@@ -34,6 +37,7 @@ class FreqMeter(object):
 
     def update_plot(self, synchrophasors):
         y_data = [[],[]]
+        print(y_data)
         for synchrophasor in synchrophasors:
             for i, msg in enumerate(synchrophasor):
                 y_data[i].append(msg.data.pmu_data[0].freq)
@@ -49,11 +53,11 @@ class FreqMeter(object):
 
 
 if __name__ == '__main__':
-    pmu_client1 = Client(remote_ip='10.0.0.1', remote_port=4722, idcode=1, mode='TCP')
-    pmu_client2 = Client(remote_ip='10.0.0.2', remote_port=4722, idcode=2, mode='TCP')
+    pmu_client1 = Client(remote_ip='10.0.0.160', remote_port=4712, idcode=1, mode='TCP')
+    #pmu_client2 = Client(remote_ip='10.0.0.2', remote_port=4722, idcode=2, mode='TCP')
 
     fm = FreqMeter()
-    pdc = PDC(clients=[pmu_client1,pmu_client2],history=300)
+    pdc = PDC(clients=[pmu_client1],history=300)
     pdc.callback = fm.update_plot
 
     pdc.run()

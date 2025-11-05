@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: phasortoolbox
+Version: 0.3
+Summary: Synchrophasor Protocol parser and tools 
+Home-page: https://github.com/sonusz/PhasorToolBox
+Author: Xingsi
+Requires-Python: >=3.5
+License-File: LICENSE
+Requires-Dist: kaitaistruct
+Dynamic: author
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
