@@ -17,7 +17,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
-class MsgFreq(object):
+class Ingestor(object):
     """
     This class include a message buffer, a method to add received message to the buffer, and a method to print the performent of the Client module.
     """
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     pmu_client1 = Client(remote_ip='10.0.0.160',remote_port=4712, idcode=1, mode='TCP')  # Example usage of the Client module
     mf = MsgFreq()  # This is your class
     pmu_client1.callback = mf.add_msg  # Assign your function to the client instance
-    pmu_client1.run(10000)  # Run and stop after received 100 measurements
+    pmu_client1.run(100)  # Run and stop after received 100 measurements
     mf.perf()  # Check performance
     msg = mf.buf[10]  # Get the 10th message in the buffer
     msg.show()  # Show the 10th message

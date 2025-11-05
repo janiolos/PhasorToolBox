@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <title>{{ title }} - SMART Phasor</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/datatables/css/dataTables.bootstrap5.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/"><i class="fas fa-bolt"></i> SMART Phasor</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="/"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/fluxo"><i class="fas fa-project-diagram"></i> Gerenciar Fluxos</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/add_fluxo"><i class="fas fa-plus-circle"></i> Adicionar Fluxo</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid mt-4">
+    <h1 class="mb-4">{{ title }}</h1>
+    {% block content %}{% endblock %}
+</div>
+
+<script src="/static/jquery/jquery-3.6.0.min.js"></script>
+<script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/static/datatables/js/jquery.dataTables.js"></script>
+<script src="/static/datatables/js/dataTables.bootstrap5.js"></script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

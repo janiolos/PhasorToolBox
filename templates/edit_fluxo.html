@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+  <form action="/edit_fluxo/{{ fluxo.ID_Fluxo }}" method="post">
+    <div class="mb-3">
+      <label for="Agente" class="form-label">Agente</label>
+      <input type="text" class="form-control" id="Agente" name="Agente" value="{{ fluxo.Agente }}" required>
+    </div>
+    <div class="mb-3">
+      <label for="Tipo_conexao" class="form-label">Tipo de Conexão</label>
+      <input type="text" class="form-control" id="Tipo_conexao" name="Tipo_conexao" value="{{ fluxo.Tipo_conexao }}" required>
+    </div>
+    <div class="mb-3">
+      <label for="Versao_norma" class="form-label">Versão da Norma IEC 37118</label>
+      <input type="text" class="form-control" id="Versao_norma" name="Versao_norma" value="{{ fluxo.Versao_norma }}" required>
+    </div>
+    <div class="mb-3">
+      <label for="Tipo_Frame_configuracao" class="form-label">Tipo de Frame de Configuração</label>
+      <input type="text" class="form-control" id="Tipo_Frame_configuracao" name="Tipo_Frame_configuracao" value="{{ fluxo.Tipo_Frame_configuracao }}" required>
+    </div>
+    <div class="mb-3">
+      <label for="IP" class="form-label">IP</label>
+      <input type="text" class="form-control" id="IP" name="IP" value="{{ fluxo.IP }}" required>
+    </div>
+    <div class="mb-3">
+      <label for="Porta" class="form-label">Porta</label>
+      <input type="number" class="form-control" id="Porta" name="Porta" value="{{ fluxo.Porta }}" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+    <a href="/fluxo" class="btn btn-secondary">Cancelar</a>
+  </form>
+{% endblock %}

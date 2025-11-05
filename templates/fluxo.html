@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <table class="table table-bordered table-hover w-100" id="data">
+      <thead>
+        <tr>
+          <th>Agente</th>
+          <th>ID Fluxo</th>
+          <th>IP</th>
+          <th>Porta</th>
+          <th>Estado</th>
+          <th>PID</th>
+          <th>CPU</th>
+          <th>Memória</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function () {
+    let fluxoIDToDelete;
+
+    var table = $('#data').DataTable({
+        "ajax": '/api/fluxos/status_completo',
+        "columns": [
+
+            { "data": 'id' },
+            { "data": 'ID_Fluxo' },
+            { "data": 'IP' },
+            { "data": 'Porta' },
+            {
+                "data": 'status_info',
+                "render": function (data) {
+                    if (data.status === 'Em Execução') return `<span class="badge bg-success">${data.status}</span>`;
+                    if (data.status === 'Parado') return `<span class="badge bg-secondary">${data.status}</span>`;
+                    return `<span class="badge bg-danger">${data.status}</span>`;
+                }
+            },
+            { "data": 'status_info.pid', "defaultContent": 'N/A' },
+            {
+                "data": 'status_info.cpu_percent',
+                "render": data => data != null ? data.toFixed(2) + ' %' : 'N/A'
+            },
+            {
+                "data": 'status_info.memory_mb',
+                "render": data => data != null ? data.toFixed(2) + ' MB' : 'N/A'
+            },
+            {
+                "data": null, "orderable": false, "searchable": false,
+                "render": function (data, type, row) {
+                    let controlButton = row.status_info.status === 'Em Execução'
+                        ? `<button class="btn btn-warning btn-sm stop-btn" data-id="${row.ID_Fluxo}" data-ip="${row.IP}" data-porta="${row.Porta}" title="Parar"><i class="fas fa-stop"></i></button>`
+                        : `<button class="btn btn-success btn-sm start-btn" data-id="${row.ID_Fluxo}" data-ip="${row.IP}" data-porta="${row.Porta}" title="Iniciar"><i class="fas fa-play"></i></button>`;
+                    const editButton = `<a href="/edit_fluxo/${row.ID_Fluxo}" class="btn btn-primary btn-sm" title="Editar"><i class="fas fa-edit"></i></a>`;
+                    const deleteButton = `<button class="btn btn-danger btn-sm delete-btn" data-id="${row.ID_Fluxo}" title="Excluir"><i class="fas fa-trash"></i></button>`;
+                    return `${controlButton} ${editButton} ${deleteButton}`;
+                }
+            }
+        ],
+        "responsive": true,
+        "language": { "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Portuguese-Brasil.json" }
+    });
+
+    setInterval(() => table.ajax.reload(null, false), 5000);
+
+    $('#data tbody').on('click', '.start-btn, .stop-btn', function () {
+        const button = $(this);
+        const url = button.hasClass('start-btn') ? '/api/receptor/start' : '/api/receptor/stop';
+        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $.ajax({
+            url: url, type: 'POST', contentType: 'application/json',
+            data: JSON.stringify({
+                id_fluxo: button.data('id'), ip: button.data('ip'), porta: button.data('porta')
+            }),
+            success: (result) => { alert(result.message); table.ajax.reload(null, false); },
+            error: (xhr) => { alert("Erro: " + (xhr.responseJSON?.detail || "Ocorreu um problema.")); table.ajax.reload(null, false); }
+        });
+    });
+
+    $('#data tbody').on('click', '.delete-btn', function () {
+        fluxoIDToDelete = $(this).data('id');
+        $('#deleteModal').modal('show');
+    });
+
+    $('#confirmDelete').on('click', function () {
+        // ... (lógica de exclusão igual à anterior) ...
+    });
+});
+</script>
+{% endblock %}

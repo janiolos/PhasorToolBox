@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+
+"""
+This is an real-time frequency meter of PMUs.
+Connects to PMUs, plots the frequency of the past N time-stamps and updates in real-time.
+"""
+
+from phasortoolbox import PDC, Client
+import matplotlib.pyplot as plt
+import numpy as np
+import gc
+import logging
+from collections import deque
+import time
+
+# ...existing code...
+# changed code
+# reduce verbosity: don't use DEBUG (matplotlib font manager is very noisy)
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
+# ...existing code...
+
+
+class FreqMeter(object):
+    def __init__(self, history=300):
+        self.history = int(history)
+        self.initialized = False
+        self.queues = []            # list of deque per client (populated at first callback)
+        self.lines = []
+        self.axes = []
+        self.fig = None
+        # x axis values (seconds relative to "now")
+        self.x = np.linspace(-self.history + 1, 0.0, num=self.history)
+        plt.ion()
+
+    def _init_plot(self, n_clients):
+        # create figure and n_clients subplots
+        self.fig, axs = plt.subplots(n_clients, 1, figsize=(8, 2.5 * n_clients), sharex=True)
+        if n_clients == 1:
+            axs = [axs]
+        for i, ax in enumerate(axs):
+            q = deque([60.0] * self.history, maxlen=self.history)
+            line, = ax.plot(self.x, list(q))
+            ax.set_title(f'PMU {i + 1} Frequency')
+            ax.set_ylabel('Freq (Hz)')
+            ax.grid(True, linestyle='--', alpha=0.4)
+            self.queues.append(q)
+            self.lines.append(line)
+            self.axes.append(ax)
+        axs[-1].set_xlabel('Time (relative samples)')
+        plt.tight_layout()
+        self.initialized = True
+
+    def _extract_latest_freq(self, client_msgs):
+        # pick last message available and try to extract frequency robustly
+        if not client_msgs:
+            return None
+        # client_msgs may be any iterable; get last element
+        try:
+            last = client_msgs[-1]
+        except Exception:
+            # fallback: iterate to last
+            last = None
+            for m in client_msgs:
+                last = m
+            if last is None:
+                return None
+        try:
+            return float(last.data.pmu_data[0].freq)
+        except Exception:
+            # could not extract freq
+            return None
+
+    def update_plot(self, synchrophasors):
+        """
+        Callback used by PDC: synchrophasors is expected to be an iterable
+        where each element corresponds to messages for one client/PMU.
+        """
+        try:
+            n_clients = len(synchrophasors)
+        except Exception:
+            # if not sized, try to build a list
+            synchrophasors = list(synchrophasors)
+            n_clients = len(synchrophasors)
+
+        if not self.initialized:
+            self._init_plot(n_clients)
+
+        # Ensure queues match number of clients (in case clients changed)
+        while len(self.queues) < n_clients:
+            q = deque([60.0] * self.history, maxlen=self.history)
+            self.queues.append(q)
+            line, = self.axes[-1].plot(self.x, list(q))
+            self.lines.append(line)
+
+        # update each client's deque with latest available frequency
+        for i, client_msgs in enumerate(synchrophasors):
+            freq = self._extract_latest_freq(client_msgs)
+            if freq is None:
+                # if no data, repeat last value to avoid shrinking arrays
+                try:
+                    last = self.queues[i][-1]
+                except Exception:
+                    last = 60.0
+                self.queues[i].append(last)
+            else:
+                self.queues[i].append(freq)
+
+        # update plot lines and autoscale y with small padding
+        for i, line in enumerate(self.lines[:n_clients]):
+            y = list(self.queues[i])
+            line.set_xdata(self.x)
+            line.set_ydata(y)
+            ax = self.axes[i]
+            ymin = min(y)
+            ymax = max(y)
+            if ymin == ymax:
+                # small padding if flat
+                pad = 0.05 * max(1.0, abs(ymin))
+            else:
+                pad = 0.05 * (ymax - ymin)
+            ax.set_ylim(ymin - pad, ymax + pad)
+
+        # draw
+        try:
+            self.fig.canvas.draw()
+            self.fig.canvas.flush_events()
+        except Exception:
+            pass
+
+        # help GC
+        del synchrophasors
+        gc.collect()
+
+    def close(self):
+        try:
+            plt.ioff()
+            plt.close(self.fig)
+        except Exception:
+            pass
+
+
+if __name__ == '__main__':
+    # configure clients here; example shows one client
+    pmu_client1 = Client(remote_ip='10.0.0.160', remote_port=4712, idcode=1, mode='TCP')
+    # add more clients as needed:
+    # pmu_client2 = Client(remote_ip='10.0.0.2', remote_port=4722, idcode=2, mode='TCP')
+
+    fm = FreqMeter(history=300)
+    # provide the list of clients you want the PDC to manage
+    clients = [pmu_client1]  # append pmu_client2, ... if available
+    pdc = PDC(clients=clients, history=fm.history)
+    pdc.callback = fm.update_plot
+
+    try:
+        pdc.run()
+    except KeyboardInterrupt:
+        logging.info('Interrupted by user, shutting down...')
+    except Exception as e:
+        logging.exception('Error running PDC')
+    finally:
+        try:
+            # best-effort stop (API may differ)
+            if hasattr(pdc, 'stop'):
+                pdc.stop()
+        except Exception:
+            pass
+        fm.close()

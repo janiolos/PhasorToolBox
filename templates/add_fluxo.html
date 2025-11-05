@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+  <form action="/add_fluxo" method="post">
+
+    <div class="mb-3">
+      <label for="ID_Fluxo" class="form-label">ID do Fluxo (Único)</label>
+      <input type="text" class="form-control" id="ID_Fluxo" name="ID_Fluxo" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="Agente" class="form-label">Agente</label>
+      <input type="text" class="form-control" id="Agente" name="Agente" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="IP" class="form-label">IP</label>
+      <input type="text" class="form-control" id="IP" name="IP" required>
+    </div>
+    <div class="mb-3">
+      <label for="Porta" class="form-label">Porta</label>
+      <input type="number" class="form-control" id="Porta" name="Porta" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="IDCODE" class="form-label">IDCODE da PMU</label>
+      <input type="number" class="form-control" id="IDCODE" name="IDCODE" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Adicionar</button>
+    <a href="/fluxo" class="btn btn-secondary">Cancelar</a>
+  </form>
+{% endblock %}

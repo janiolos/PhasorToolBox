@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Dashboard em Tempo Real - PMU ID: {{ pmu_id }}</h2>
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">Frequência (Hz)</div>
+                <div class="card-body">
+                    <canvas id="frequencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">Magnitude do Fasor (V)</div>
+                <div class="card-body">
+                    <canvas id="magnitudeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">Ângulo do Fasor (Graus)</div>
+                <div class="card-body">
+                    <canvas id="angleChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+$(document).ready(function() {
+    // O Jinja2 renderiza o pmu_id diretamente no JavaScript
+    const pmuId = {{ pmu_id }};
+    const MAX_DATA_POINTS = 20; // Número de pontos a mostrar no gráfico
+
+    // Função para criar um gráfico com configuração padrão
+    function createChart(canvasId, label) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: label,
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                animation: false, // Desativa a animação para melhor performance em tempo real
+                scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 10
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Inicializa os gráficos
+    const frequencyChart = createChart('frequencyChart', 'Frequência');
+    const magnitudeChart = createChart('magnitudeChart', 'Magnitude (Ex: VA_mag)');
+    const angleChart = createChart('angleChart', 'Ângulo (Ex: VA_ang)');
+
+    // Função para adicionar dados a um gráfico
+    function addData(chart, label, data) {
+        chart.data.labels.push(label);
+        chart.data.datasets.forEach((dataset) => {
+            dataset.data.push(data);
+        });
+
+        // Remove o ponto mais antigo se exceder o limite
+        if (chart.data.labels.length > MAX_DATA_POINTS) {
+            chart.data.labels.shift();
+            chart.data.datasets.forEach((dataset) => {
+                dataset.data.shift();
+            });
+        }
+        chart.update(); // Redesenha o gráfico
+    }
+
+    // Função principal que busca os dados da API
+    function updateData() {
+        $.ajax({
+            url: `/api/pmu_data/${pmuId}`,
+            type: 'GET',
+            success: function(response) {
+                const data = response.data;
+                console.log("Dados recebidos:", data);
+
+                if (Object.keys(data).length > 0) {
+                    const now = new Date().toLocaleTimeString('pt-BR');
+
+                    // Atualiza os gráficos com os dados recebidos
+                    // NOTA: Os nomes das chaves (ex: 'VA_mag') devem corresponder exatamente
+                    // ao que o seu Receptor_V4_qualidade.py está a enviar para o Redis.
+                    addData(frequencyChart, now, data.frequency || 0);
+                    addData(magnitudeChart, now, data.VA_mag || 0); // Altere 'VA_mag' se o nome do seu canal for diferente
+                    addData(angleChart, now, data.VA_ang || 0);     // Altere 'VA_ang' se o nome do seu canal for diferente
+                }
+            },
+            error: function(xhr) {
+                console.error(`Erro ao buscar dados para a PMU ${pmuId}:`, xhr.responseText);
+            }
+        });
+    }
+
+    // Inicia a atualização periódica a cada 2 segundos
+    setInterval(updateData, 2000);
+});
+</script>
+{% endblock %}

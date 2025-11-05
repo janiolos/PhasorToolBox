@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-primary shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Fluxos Configurados</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stats-total">--</div>
+          </div>
+          <div class="col-auto"><i class="fas fa-server fa-2x text-gray-300"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-success shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Em Execução</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stats-running">--</div>
+          </div>
+          <div class="col-auto"><i class="fas fa-play-circle fa-2x text-gray-300"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-secondary shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Parados</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stats-stopped">--</div>
+          </div>
+          <div class="col-auto"><i class="fas fa-stop-circle fa-2x text-gray-300"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-danger shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Com Erro</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stats-error">--</div>
+          </div>
+          <div class="col-auto"><i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    function updateOverviewStats() {
+        $.ajax({
+            url: "/api/health/overview_stats",
+            type: "GET",
+            success: function(data) {
+                $('#stats-total').text(data.total);
+                $('#stats-running').text(data.running);
+                $('#stats-stopped').text(data.stopped);
+                $('#stats-error').text(data.error);
+            },
+            error: function() {
+                $('.h5').text('Erro');
+            }
+        });
+    }
+    updateOverviewStats();
+    setInterval(updateOverviewStats, 5000);
+});
+</script>
+{% endblock %}

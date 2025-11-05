@@ -30,7 +30,7 @@ class SyncFreq(PDC):
 
     def perf(self):
         print('{} synchrophasors received.'.format(self.total_synchrophasors_count))
-        print('Average delay on each synchrophasor: {}'.format(self.total_perf_count/self.total_synchrophasors_count))
+        #print('Average delay on each synchrophasor: {}'.format(self.total_perf_count/self.total_synchrophasors_count))
 
 
     def callback(self, synchrophasors):
@@ -65,7 +65,7 @@ class SyncFreq(PDC):
 
 
 if __name__ == '__main__':
-    pmus = [Client(remote_ip='10.0.0.1',remote_port=4712, idcode=1, mode='TCP'),
+    pmus = [Client(remote_ip='10.0.0.160',remote_port=4712, idcode=1, mode='TCP'),
             Client(remote_ip='10.0.0.2',remote_port=4713, local_port=4713, idcode=2, mode='UDP')]
 
     pdc = SyncFreq()
